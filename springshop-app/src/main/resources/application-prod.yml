@@ -1,0 +1,71 @@
+spring:
+  datasource:
+    url: ${DB_URL}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 10
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+
+  h2:
+    console:
+      enabled: false
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+      lettuce:
+        pool:
+          max-active: 50
+
+  cache:
+    type: redis
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    access-expiration-ms: 1800000
+    refresh-expiration-ms: 604800000
+
+  cors:
+    allowed-origins:
+      - https://springshop.com
+      - https://www.springshop.com
+
+  rate-limit:
+    enabled: true
+    requests-per-minute: 60
+
+  feature-flags:
+    email-notifications: true
+    sms-notifications: true
+    push-notifications: true
+
+management:
+  endpoint:
+    health:
+      show-details: when-authorized
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+logging:
+  level:
+    root: ERROR
+    com.springshop: WARN
+    org.springframework.security: ERROR
+  file:
+    name: /var/log/springshop/application.log
+    max-size: 100MB
+    max-history: 30
