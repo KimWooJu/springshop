@@ -97,13 +97,28 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <!-- ASM 9.8 override: spring-boot 3.4.1 bundles ASM 9.7 which supports
+                     up to Java 24 (class file v68). Java 25 (v69) requires ASM 9.8 or later. -->
+                <dependencies>
+                    <dependency>
+                        <groupId>org.ow2.asm</groupId>
+                        <artifactId>asm</artifactId>
+                        <version>9.8</version>
+                    </dependency>
+                </dependencies>
                 <configuration>
+                    <!-- Explicitly set main class to skip ASM class-scanning.
+                         spring-boot 3.4.1 bundles ASM 9.7 which cannot parse Java 25
+                         class files (major version 69), causing "Unable to find main class". -->
+                    <mainClass>com.springshop.Application</mainClass>
                     <excludes>
                         <exclude>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
+                    <!-- enable-preview required at runtime for preview APIs such as StructuredTaskScope -->
+                    <jvmArguments>--enable-preview</jvmArguments>
                 </configuration>
             </plugin>
         </plugins>
