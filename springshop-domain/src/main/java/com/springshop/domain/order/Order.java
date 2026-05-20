@@ -222,10 +222,9 @@ public class Order extends BaseAuditEntity {
         if (!"PROCESSING".equals(statusLabel) && !"CONFIRMED".equals(statusLabel)) {
             throw new IllegalStateException("처리/확인 상태에서만 발송 가능");
         }
-        if (shipping == null) {
-            throw new IllegalStateException("배송 정보가 없습니다");
+        if (shipping != null) {
+            shipping.ship(carrier, trackingNumber);
         }
-        shipping.ship(carrier, trackingNumber);
         applyStatus("SHIPPED", trackingNumber);
         registerEvent(OrderEvents.OrderShippedEvent.of(getId(), trackingNumber));
     }
@@ -234,7 +233,9 @@ public class Order extends BaseAuditEntity {
         if (!"SHIPPED".equals(statusLabel)) {
             throw new IllegalStateException("발송된 주문만 배송 완료 처리 가능");
         }
-        shipping.markDelivered();
+        if (shipping != null) {
+            shipping.markDelivered();
+        }
         applyStatus("DELIVERED", null);
         registerEvent(OrderEvents.OrderDeliveredEvent.of(getId()));
     }

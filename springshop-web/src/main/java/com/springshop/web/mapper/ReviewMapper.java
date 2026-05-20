@@ -20,11 +20,9 @@ public interface ReviewMapper {
      * @param review 변환할 리뷰 엔티티
      * @return ReviewResponse DTO
      */
-    @Mapping(target = "status", source = "reviewStatus")
-    @Mapping(target = "userNickname", ignore = true)
-    @Mapping(target = "userAvatarUrl", ignore = true)
+    @Mapping(target = "userName", ignore = true)
     @Mapping(target = "imageUrls", ignore = true)
-    @Mapping(target = "isEditable", ignore = true)
+    @Mapping(target = "editable", ignore = true)
     ReviewResponse toResponse(Review review);
 
     /**
@@ -33,7 +31,6 @@ public interface ReviewMapper {
      * @param review 변환할 리뷰 엔티티
      * @return ReviewSummaryResponse DTO
      */
-    @Mapping(target = "userNickname", ignore = true)
     ReviewSummaryResponse toSummaryResponse(Review review);
 
     /**

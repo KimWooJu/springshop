@@ -121,4 +121,9 @@ public class Tag extends BaseEntity {
     public boolean isPopular() {
         return this.useCount >= 100;
     }
+
+    public static Tag create(String name) { return of(name); }
+    public long getUsageCount() { return useCount; }
+    public void incrementUsage() { incrementUseCount(); }
+    public void decrementUsage() { decrementUseCount(); }
 }

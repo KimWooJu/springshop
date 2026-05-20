@@ -95,7 +95,7 @@ public class PaymentController {
     @Operation(summary = "내 결제 이력", description = "로그인한 사용자의 결제 이력을 페이징 조회한다.")
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<List<PaymentResponse>>> getMyPayments(
+    public ResponseEntity<ApiResponse<PaymentResponse>> getMyPayments(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String status,
@@ -169,7 +169,7 @@ public class PaymentController {
     @Operation(summary = "관리자 결제 목록", description = "관리자가 전체 결제 목록을 페이징 조회한다.")
     @GetMapping("/admin")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<List<PaymentResponse>>> adminPaymentList(
+    public ResponseEntity<ApiResponse<PaymentResponse>> adminPaymentList(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size,
             @RequestParam(required = false) String status,

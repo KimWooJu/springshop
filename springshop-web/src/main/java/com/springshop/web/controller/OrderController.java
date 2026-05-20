@@ -123,8 +123,8 @@ public class OrderController {
     public ResponseEntity<ApiResponse<OrderResponse>> updateStatus(
             @PathVariable Long id,
             @Valid @RequestBody UpdateOrderStatusRequest request) {
-        LOG.info("주문 상태 변경 - id={}, status={}", id, request.newStatus());
-        OrderResponse data = buildSampleOrder(id, buildOrderNumber(id), request.newStatus());
+        LOG.info("주문 상태 변경 - id={}, status={}", id, request.status());
+        OrderResponse data = buildSampleOrder(id, buildOrderNumber(id), request.status());
         return ResponseEntity.ok(ApiResponse.Success.of(data, "상태 변경 완료"));
     }
 

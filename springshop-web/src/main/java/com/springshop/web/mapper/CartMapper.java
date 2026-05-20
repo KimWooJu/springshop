@@ -18,9 +18,9 @@ public interface CartMapper {
      * @return CartResponse DTO
      */
     @Mapping(target = "items", ignore = true)
-    @Mapping(target = "totalAmount", ignore = true)
+    @Mapping(target = "finalAmount", ignore = true)
     @Mapping(target = "totalItemCount", ignore = true)
-    @Mapping(target = "appliedCouponCode", ignore = true)
+    @Mapping(target = "shippingFee", ignore = true)
     @Mapping(target = "discountAmount", ignore = true)
     CartResponse toResponse(Cart cart);
 

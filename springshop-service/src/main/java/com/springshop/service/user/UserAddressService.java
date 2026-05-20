@@ -1,9 +1,13 @@
 package com.springshop.service.user;
 
+import com.springshop.domain.user.User;
 import com.springshop.domain.user.UserAddress;
 import com.springshop.domain.user.UserAddressRepository;
-import com.springshop.domain.common.exception.InvalidStateException;
-import com.springshop.domain.common.exception.ResourceNotFoundException;
+import com.springshop.domain.user.UserRepository;
+import com.springshop.domain.vo.Address;
+import com.springshop.domain.vo.PhoneNumber;
+import com.springshop.common.exception.InvalidStateException;
+import com.springshop.common.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -62,6 +66,7 @@ public interface UserAddressService {
         private static final int MAX_ADDRESS_PER_USER = 10;
 
         private final UserAddressRepository addressRepository;
+        private final UserRepository userRepository;
 
         @Override
         @Transactional
@@ -74,18 +79,19 @@ public interface UserAddressService {
             }
             validate(cmd);
 
-            var address = UserAddress.create(
-                userId,
-                cmd.recipientName(),
-                cmd.phoneNumber(),
+            var user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다: " + userId));
+            var addressVo = new Address(
                 cmd.postalCode(),
                 cmd.addressLine1(),
-                cmd.addressLine2(),
-                cmd.city(),
-                cmd.state(),
-                cmd.country(),
-                cmd.deliveryNote()
+                cmd.city() != null ? cmd.city() : "N/A",
+                cmd.state() != null ? cmd.state() : "N/A",
+                cmd.country() != null ? cmd.country() : "KR",
+                cmd.addressLine2()
             );
+            var phoneVo = cmd.phoneNumber() != null ? new PhoneNumber(cmd.phoneNumber()) : null;
+            var address = UserAddress.create(user, cmd.recipientName(), addressVo,
+                cmd.recipientName(), phoneVo);
 
             // 첫 주소는 자동으로 기본 주소
             if (current == 0 || cmd.asDefault()) {

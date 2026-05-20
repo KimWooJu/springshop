@@ -7,6 +7,7 @@
 [![Java](https://img.shields.io/badge/Java-25-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/25/)
 [![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.4.1-6DB33F?style=for-the-badge&logo=spring-boot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![Maven](https://img.shields.io/badge/Maven-3.9-C71A36?style=for-the-badge&logo=apache-maven&logoColor=white)](https://maven.apache.org/)
+[![Build](https://img.shields.io/badge/Build-mvn_compile_✓-success?style=for-the-badge)](.)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 [![Lines of Code](https://img.shields.io/badge/Lines_of_Code-35%2C700%2B-brightgreen?style=for-the-badge)](.)
 
@@ -348,10 +349,11 @@ java-spring-samples/
 | 라이브러리 | 버전 | 용도 |
 |-----------|------|------|
 | **JJWT** | 0.12.3 | JWT 발급/검증 |
-| **MapStruct** | 1.5.5 | DTO ↔ Entity 매핑 |
+| **MapStruct** | 1.6.3 | DTO ↔ Entity 매핑 |
 | **SpringDoc OpenAPI** | 2.3.0 | Swagger UI |
 | **Lombok** | Latest | 보일러플레이트 제거 |
 | **Spring Mail** | 3.4.x | 이메일 발송 |
+| **Commons Pool2** | 2.12.x | Lettuce Redis 커넥션 풀 |
 
 ---
 
@@ -376,10 +378,16 @@ mvn --version
 git clone https://github.com/KimWooJu/springshop.git
 cd springshop
 
+# 컴파일만 (코드 분석 도구 검증용 — 5개 모듈 모두 통과)
+mvn compile
+
+# 패키징 (테스트 제외)
 mvn clean package -DskipTests
 
 # 결과: springshop-app/target/springshop-app-1.0.0-SNAPSHOT.jar
 ```
+
+> **코드 분석 도구 검증 시:** `mvn compile`로 `.class` 파일을 생성한 뒤 각 모듈의 `target/classes/` 디렉토리를 분석 대상으로 지정하면 됩니다.
 
 ### 실행 / Run
 

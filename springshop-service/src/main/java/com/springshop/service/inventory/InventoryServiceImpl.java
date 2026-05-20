@@ -103,7 +103,7 @@ public class InventoryServiceImpl implements InventoryService {
         AtomicInteger confirmed = new AtomicInteger(0);
         AtomicInteger failed = new AtomicInteger(0);
 
-        try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
+        try (var scope = StructuredTaskScope.open()) {
             for (Map.Entry<Long, Integer> entry : productQuantityMap.entrySet()) {
                 Long productId = entry.getKey();
                 Integer qty = entry.getValue();
@@ -123,7 +123,9 @@ public class InventoryServiceImpl implements InventoryService {
                 });
             }
             scope.join();
-            scope.throwIfFailed(e -> new InventoryException(ErrorCode.INVENTORY_LOCK_TIMEOUT));
+            if (failed.get() > 0) {
+                throw new InventoryException(ErrorCode.INVENTORY_LOCK_TIMEOUT);
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new InventoryException(ErrorCode.INVENTORY_LOCK_TIMEOUT);

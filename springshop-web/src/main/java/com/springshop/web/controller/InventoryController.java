@@ -49,7 +49,7 @@ public class InventoryController {
     })
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<List<InventoryResponse>>> listInventory(
+    public ResponseEntity<ApiResponse<InventoryResponse>> listInventory(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size,
             @RequestParam(required = false) String status,

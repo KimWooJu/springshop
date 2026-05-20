@@ -85,13 +85,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        String jti = jwtTokenProvider.getJti(token);
+        String jti = jwtTokenProvider.getTokenId(token);
         if (isBlacklisted(jti)) {
             log.warn("블랙리스트 토큰 사용 시도 - jti={}, path={}", jti, request.getRequestURI());
             return;
         }
 
-        String email = jwtTokenProvider.getSubject(token);
+        String email = jwtTokenProvider.getEmailFromToken(token);
         UserDetails userDetails = userPrincipalService.loadUserByUsername(email);
 
         var authentication = new UsernamePasswordAuthenticationToken(

@@ -188,28 +188,28 @@ public class AdminController {
             @RequestParam(defaultValue = "MONTH") String period,
             @RequestParam(defaultValue = "20") int topN) {
         LOG.info("상품 통계 - period={}, topN={}", period, topN);
-        Map<String, Object> result = Map.of(
-                "period", period,
-                "totalProducts", 12_345L,
-                "activeProducts", 9_876L,
-                "outOfStockProducts", 234L,
-                "lowStockProducts", 567L,
-                "newProductsThisMonth", 234L,
-                "averagePrice", new BigDecimal("38000"),
-                "averageRating", 4.32,
-                "totalReviews", 234_567L,
-                "topSellingProducts", List.of(
+        Map<String, Object> result = Map.ofEntries(
+                Map.entry("period", period),
+                Map.entry("totalProducts", 12_345L),
+                Map.entry("activeProducts", 9_876L),
+                Map.entry("outOfStockProducts", 234L),
+                Map.entry("lowStockProducts", 567L),
+                Map.entry("newProductsThisMonth", 234L),
+                Map.entry("averagePrice", new BigDecimal("38000")),
+                Map.entry("averageRating", 4.32),
+                Map.entry("totalReviews", 234_567L),
+                Map.entry("topSellingProducts", List.of(
                         Map.of("productId", 10001L, "name", "맥북 프로 16인치",
                                 "soldCount", 234L, "revenue", new BigDecimal("89123400")),
                         Map.of("productId", 10002L, "name", "아이폰 15 Pro",
                                 "soldCount", 198L, "revenue", new BigDecimal("72340000"))
-                ),
-                "byCategory", Map.of(
+                )),
+                Map.entry("byCategory", Map.of(
                         "전자제품", Map.of("productCount", 3456, "totalSold", 12345L),
                         "패션", Map.of("productCount", 2345, "totalSold", 8765L),
                         "식품", Map.of("productCount", 1234, "totalSold", 5432L)
-                ),
-                "calculatedAt", LocalDateTime.now().toString()
+                )),
+                Map.entry("calculatedAt", LocalDateTime.now().toString())
         );
         return ResponseEntity.ok(ApiResponse.Success.of(result));
     }

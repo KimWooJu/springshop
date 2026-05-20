@@ -2,6 +2,7 @@ package com.springshop.domain.product;
 
 import com.springshop.domain.base.DomainEvent;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -93,6 +94,27 @@ public final class ProductEvents {
 
         public static ProductDiscontinuedEvent of(Long productId, String name, String reason) {
             return new ProductDiscontinuedEvent(UUID.randomUUID(), Instant.now(), productId, name, reason);
+        }
+    }
+
+    /** 상품 가격 변경됨. */
+    public record ProductPriceChangedEvent(
+            UUID eventId,
+            Instant occurredAt,
+            Long aggregateId,
+            BigDecimal oldPrice,
+            BigDecimal newPrice
+    ) implements DomainEvent {
+
+        public ProductPriceChangedEvent {
+            if (eventId == null) eventId = UUID.randomUUID();
+            if (occurredAt == null) occurredAt = Instant.now();
+            Objects.requireNonNull(oldPrice, "oldPrice");
+            Objects.requireNonNull(newPrice, "newPrice");
+        }
+
+        public static ProductPriceChangedEvent of(Long productId, BigDecimal oldPrice, BigDecimal newPrice) {
+            return new ProductPriceChangedEvent(UUID.randomUUID(), Instant.now(), productId, oldPrice, newPrice);
         }
     }
 }

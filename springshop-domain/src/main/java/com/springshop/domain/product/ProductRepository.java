@@ -85,6 +85,15 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             """)
     Page<Product> findHighlyRated(@Param("minReviewCount") int minReviews, Pageable pageable);
 
+    @Query("SELECT COUNT(p) > 0 FROM Product p WHERE p.name = :sku")
+    boolean existsBySku(@Param("sku") String sku);
+
+    @Query("SELECT p FROM Product p WHERE p.name = :sku")
+    java.util.Optional<Product> findBySku(@Param("sku") String sku);
+
+    default List<Product> findAllByCategoryId(Long categoryId) { return findByCategoryId(categoryId); }
+    default List<Product> findAllByBrandId(Long brandId) { return findByBrandId(brandId); }
+
     /**
      * 태그를 포함하는 상품.
      */

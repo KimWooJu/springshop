@@ -19,9 +19,8 @@ public interface NotificationMapper {
      * @param notification 변환할 알림 엔티티
      * @return NotificationResponse DTO
      */
-    @Mapping(target = "type", source = "notificationType")
-    @Mapping(target = "typeDisplay", ignore = true)
-    @Mapping(target = "actionUrl", ignore = true)
+    @Mapping(target = "type", ignore = true)
+    @Mapping(target = "channel", ignore = true)
     NotificationResponse toResponse(Notification notification);
 
     /**

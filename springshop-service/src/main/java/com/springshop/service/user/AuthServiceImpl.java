@@ -3,8 +3,8 @@ package com.springshop.service.user;
 import com.springshop.domain.user.User;
 import com.springshop.domain.user.UserRepository;
 import com.springshop.domain.user.UserStatus;
-import com.springshop.domain.common.exception.InvalidStateException;
-import com.springshop.domain.common.exception.ResourceNotFoundException;
+import com.springshop.common.exception.InvalidStateException;
+import com.springshop.common.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -65,10 +65,10 @@ public class AuthServiceImpl implements AuthService {
         var user = userRepository.findByEmail(email.trim().toLowerCase())
             .orElseThrow(() -> new InvalidStateException("이메일 또는 비밀번호가 올바르지 않습니다."));
 
-        if (user.getStatus() == UserStatus.LOCKED) {
+        if (user.getStatus() instanceof UserStatus.Locked) {
             throw new InvalidStateException("잠금된 계정입니다. 관리자에게 문의하세요.");
         }
-        if (user.getStatus() == UserStatus.WITHDRAWN) {
+        if (user.getStatus() instanceof UserStatus.Withdrawn) {
             throw new InvalidStateException("탈퇴 처리된 계정입니다.");
         }
 
@@ -188,7 +188,7 @@ public class AuthServiceImpl implements AuthService {
                 ));
             });
 
-        if (user.getStatus() == UserStatus.WITHDRAWN || user.getStatus() == UserStatus.LOCKED) {
+        if (user.getStatus() instanceof UserStatus.Withdrawn || user.getStatus() instanceof UserStatus.Locked) {
             throw new InvalidStateException("해당 계정으로는 로그인할 수 없습니다.");
         }
         userService.recordLoginTimestamp(user.getId(), "oauth:" + provider);

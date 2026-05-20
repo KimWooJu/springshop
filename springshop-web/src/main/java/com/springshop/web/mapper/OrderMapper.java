@@ -23,10 +23,10 @@ public interface OrderMapper {
      * @param order 변환할 주문 엔티티
      * @return OrderResponse DTO
      */
-    @Mapping(target = "status", source = "orderStatus")
+    @Mapping(target = "status", ignore = true)
     @Mapping(target = "items", ignore = true)
-    @Mapping(target = "shippingAddress", ignore = true)
-    @Mapping(target = "paymentInfo", ignore = true)
+    @Mapping(target = "shipping", ignore = true)
+    @Mapping(target = "payment", ignore = true)
     OrderResponse toResponse(Order order);
 
     /**
@@ -35,9 +35,8 @@ public interface OrderMapper {
      * @param order 변환할 주문 엔티티
      * @return OrderSummaryResponse DTO
      */
-    @Mapping(target = "status", source = "orderStatus")
-    @Mapping(target = "representativeItem", ignore = true)
-    @Mapping(target = "additionalItemCount", ignore = true)
+    @Mapping(target = "status", ignore = true)
+    @Mapping(target = "itemCount", ignore = true)
     OrderSummaryResponse toSummaryResponse(Order order);
 
     /**
@@ -46,9 +45,9 @@ public interface OrderMapper {
      * @param order 변환할 주문 엔티티
      * @return OrderTrackingResponse DTO
      */
-    @Mapping(target = "trackingHistory", ignore = true)
+    @Mapping(target = "status", ignore = true)
     @Mapping(target = "estimatedDelivery", ignore = true)
-    @Mapping(target = "carrier", ignore = true)
+    @Mapping(target = "carrierCode", ignore = true)
     OrderTrackingResponse toTrackingResponse(Order order);
 
     /**

@@ -16,6 +16,13 @@ public class DuplicateResourceException extends BusinessException {
     private final String field;
     private final Object value;
 
+    public DuplicateResourceException(String message) {
+        super(ErrorCode.SYSTEM_VALIDATION_FAILED, message);
+        this.resourceName = message;
+        this.field = "";
+        this.value = null;
+    }
+
     public DuplicateResourceException(String resourceName, String field, Object value) {
         super(resolveErrorCode(resourceName, field), "%s(%s=%s)".formatted(resourceName, field, value));
         this.resourceName = Objects.requireNonNull(resourceName);

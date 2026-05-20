@@ -3,13 +3,13 @@ package com.springshop.service.product;
 import com.springshop.domain.product.Product;
 import com.springshop.domain.product.ProductRepository;
 import com.springshop.domain.product.ProductStatus;
-import com.springshop.domain.product.event.ProductCreatedEvent;
-import com.springshop.domain.product.event.ProductOutOfStockEvent;
-import com.springshop.domain.product.event.ProductPriceChangedEvent;
-import com.springshop.domain.product.event.ProductPublishedEvent;
-import com.springshop.domain.common.exception.DuplicateResourceException;
-import com.springshop.domain.common.exception.InvalidStateException;
-import com.springshop.domain.common.exception.ResourceNotFoundException;
+import com.springshop.domain.product.ProductEvents.ProductCreatedEvent;
+import com.springshop.domain.product.ProductEvents.ProductOutOfStockEvent;
+import com.springshop.domain.product.ProductEvents.ProductPriceChangedEvent;
+import com.springshop.domain.product.ProductEvents.ProductPublishedEvent;
+import com.springshop.common.exception.DuplicateResourceException;
+import com.springshop.common.exception.InvalidStateException;
+import com.springshop.common.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -82,12 +82,10 @@ public class ProductServiceImpl implements ProductService {
         }
 
         var saved = productRepository.save(product);
-        eventPublisher.publishEvent(new ProductCreatedEvent(
+        eventPublisher.publishEvent(ProductCreatedEvent.of(
             saved.getId(),
             saved.getName(),
-            saved.getCategoryId(),
-            saved.getBrandId(),
-            LocalDateTime.now()
+            saved.getCategoryId()
         ));
         log.info("상품 등록 완료: id={}, sku={}", saved.getId(), saved.getSku());
         return saved;
@@ -114,9 +112,7 @@ public class ProductServiceImpl implements ProductService {
         var saved = productRepository.save(product);
 
         if (command.price() != null && command.price().compareTo(oldPrice) != 0) {
-            eventPublisher.publishEvent(new ProductPriceChangedEvent(
-                productId, oldPrice, command.price(), LocalDateTime.now()
-            ));
+            eventPublisher.publishEvent(ProductPriceChangedEvent.of(productId, oldPrice, command.price()));
         }
         log.info("상품 수정 완료: id={}", productId);
         return saved;
@@ -145,13 +141,13 @@ public class ProductServiceImpl implements ProductService {
     @CacheEvict(value = "product", key = "#productId")
     public Product publish(Long productId) {
         var product = loadProduct(productId);
-        if (product.getStatus() == ProductStatus.ON_SALE) {
+        if (product.getStatus() instanceof ProductStatus.Active) {
             log.debug("이미 판매중 상태: id={}", productId);
             return product;
         }
         product.publish();
         var saved = productRepository.save(product);
-        eventPublisher.publishEvent(new ProductPublishedEvent(productId, LocalDateTime.now()));
+        eventPublisher.publishEvent(ProductPublishedEvent.of(productId, product.getName()));
         return saved;
     }
 
@@ -171,9 +167,7 @@ public class ProductServiceImpl implements ProductService {
         var product = loadProduct(productId);
         product.markOutOfStock();
         var saved = productRepository.save(product);
-        eventPublisher.publishEvent(new ProductOutOfStockEvent(
-            productId, product.getName(), LocalDateTime.now()
-        ));
+        eventPublisher.publishEvent(ProductOutOfStockEvent.of(productId, product.getName()));
         return saved;
     }
 
@@ -242,7 +236,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public Page<Product> listByStatus(ProductStatus status, Pageable pageable) {
         var filtered = productRepository.findAll().stream()
-            .filter(p -> p.getStatus() == status)
+            .filter(p -> p.getStatus().label().equals(status.label()))
             .toList();
         return pageOf(filtered, pageable);
     }
@@ -290,9 +284,7 @@ public class ProductServiceImpl implements ProductService {
         var oldPrice = product.getPrice();
         product.changePrice(newPrice, reason);
         var saved = productRepository.save(product);
-        eventPublisher.publishEvent(new ProductPriceChangedEvent(
-            productId, oldPrice, newPrice, LocalDateTime.now()
-        ));
+        eventPublisher.publishEvent(ProductPriceChangedEvent.of(productId, oldPrice, newPrice));
         return saved;
     }
 
@@ -324,11 +316,9 @@ public class ProductServiceImpl implements ProductService {
     public Product syncStockQuantity(Long productId, long quantity) {
         var product = loadProduct(productId);
         product.syncStock(quantity);
-        if (quantity == 0 && product.getStatus() == ProductStatus.ON_SALE) {
+        if (quantity == 0 && product.getStatus() instanceof ProductStatus.Active) {
             product.markOutOfStock();
-            eventPublisher.publishEvent(new ProductOutOfStockEvent(
-                productId, product.getName(), LocalDateTime.now()
-            ));
+            eventPublisher.publishEvent(ProductOutOfStockEvent.of(productId, product.getName()));
         }
         return productRepository.save(product);
     }
@@ -373,9 +363,9 @@ public class ProductServiceImpl implements ProductService {
         var all = productRepository.findAll();
         var today = LocalDate.now();
         long total = all.size();
-        long onSale = all.stream().filter(p -> p.getStatus() == ProductStatus.ON_SALE).count();
-        long oos = all.stream().filter(p -> p.getStatus() == ProductStatus.OUT_OF_STOCK).count();
-        long discontinued = all.stream().filter(p -> p.getStatus() == ProductStatus.DISCONTINUED).count();
+        long onSale = all.stream().filter(p -> p.getStatus() instanceof ProductStatus.Active).count();
+        long oos = all.stream().filter(p -> p.getStatus() instanceof ProductStatus.OutOfStock).count();
+        long discontinued = all.stream().filter(p -> p.getStatus() instanceof ProductStatus.Discontinued).count();
         long newToday = all.stream()
             .filter(p -> p.getCreatedAt() != null && p.getCreatedAt().toLocalDate().equals(today))
             .count();
@@ -439,7 +429,7 @@ public class ProductServiceImpl implements ProductService {
         var product = findByIdAndCountView(productId);
         var siblings = productRepository.findAllByCategoryId(product.getCategoryId()).stream()
             .filter(p -> !p.getId().equals(productId))
-            .filter(p -> p.getStatus() == ProductStatus.ON_SALE)
+            .filter(p -> p.getStatus() instanceof ProductStatus.Active)
             .sorted(Comparator.comparingLong(Product::getSalesCount).reversed())
             .limit(Math.max(1, recommendLimit))
             .toList();

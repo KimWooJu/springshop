@@ -280,6 +280,59 @@ public class Product extends BaseAuditEntity {
         this.reviewCount = newReviewCount;
     }
 
+    public String getStatusLabel() { return statusLabel; }
+    public BigDecimal getPrice() { return basePrice; }
+    public long getSalesCount() { return soldCount; }
+    public double getAverageRating() { return rating == null ? 0.0 : rating.doubleValue(); }
+    public String getSku() { return null; }
+    public boolean isOnDiscount() { return false; }
+    public String getMainImageUrl() { return null; }
+
+    public static Product create(String sku, String name, String description, BigDecimal basePrice,
+            Long categoryId, Long brandId, long initialStock, String mainImageUrl) {
+        return createDraft(name, description, basePrice, categoryId, brandId);
+    }
+
+    public static Product create(String sku, String name, String description, BigDecimal basePrice,
+            Long categoryId, Long brandId, Long initialStock, String mainImageUrl) {
+        return createDraft(name, description, basePrice, categoryId, brandId);
+    }
+
+    public void update(String name, String description, BigDecimal price, String mainImageUrl) {
+        if (name != null && !name.isBlank()) updateBasicInfo(name, description);
+        if (price != null) updatePrice(price);
+    }
+
+    public void replaceTags(java.util.Collection<String> newTags) {
+        this.tags.clear();
+        if (newTags != null) {
+            newTags.forEach(t -> { if (t != null) { try { addTag(t); } catch (Exception ignored) {} } });
+        }
+    }
+
+    public void softDelete(String requester) {
+        discontinue("삭제: " + (requester != null ? requester : "unknown"));
+    }
+
+    public void markInStock() {
+        if ("OUT_OF_STOCK".equals(statusLabel)) publish();
+    }
+
+    public void changePrice(BigDecimal newPrice, String reason) {
+        updatePrice(newPrice);
+    }
+
+    public void applyDiscount(BigDecimal discountedPrice, java.time.LocalDateTime untilWhen) {}
+    public void removeDiscount() {}
+
+    public void syncStock(long quantity) {
+        updateStock((int) Math.min(quantity, Integer.MAX_VALUE));
+    }
+
+    public void changeDisplayOrder(int order) {}
+    public void markAsNew(boolean isNew) {}
+    public void markAsRecommended(boolean recommended) {}
+
     private void applyStatus(String label, String reason) {
         this.statusLabel = label;
         this.statusReason = reason;

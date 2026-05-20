@@ -1,9 +1,11 @@
 package com.springshop.service.product;
 
+import com.springshop.domain.product.Product;
 import com.springshop.domain.product.ProductImage;
 import com.springshop.domain.product.ProductImageRepository;
-import com.springshop.domain.common.exception.InvalidStateException;
-import com.springshop.domain.common.exception.ResourceNotFoundException;
+import com.springshop.domain.product.ProductRepository;
+import com.springshop.common.exception.InvalidStateException;
+import com.springshop.common.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -44,6 +46,7 @@ public class ProductImageServiceImpl {
     );
 
     private final ProductImageRepository imageRepository;
+    private final ProductRepository productRepository;
 
     /**
      * 이미지 추가.
@@ -55,7 +58,9 @@ public class ProductImageServiceImpl {
             throw new InvalidStateException(
                 "상품당 이미지 한도 초과: 최대 " + MAX_IMAGES_PER_PRODUCT + "개");
         }
-        var image = ProductImage.create(productId, url, altText, (int) current);
+        var product = productRepository.findById(productId)
+            .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
+        var image = new ProductImage(product, url, null, altText, (int) current);
         if (asMain || current == 0) {
             unsetMainOnAll(productId);
             image.markAsMain();

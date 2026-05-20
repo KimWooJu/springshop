@@ -1,7 +1,7 @@
 package com.springshop.service.order;
 
 import com.springshop.domain.order.OrderRepository;
-import com.springshop.domain.common.exception.ResourceNotFoundException;
+import com.springshop.common.exception.ResourceNotFoundException;
 import com.springshop.service.inventory.InventoryService;
 import com.springshop.service.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
@@ -72,7 +72,7 @@ public class OrderProcessingServiceImpl implements OrderProcessingService {
             Future<Boolean> inventoryTask = executor.submit(() -> {
                 try {
                     log.debug("재고 확정 시작: orderId={}", orderId);
-                    inventoryService.confirmReservationsForOrder(orderId);
+                    inventoryService.confirmReservation(orderId, Map.of());
                     return true;
                 } catch (Exception e) {
                     log.error("재고 확정 실패: orderId={}", orderId, e);
@@ -84,7 +84,7 @@ public class OrderProcessingServiceImpl implements OrderProcessingService {
                 try {
                     log.debug("주문 확인 알림 발송: orderId={}", orderId);
                     notificationService.sendOrderStatusNotification(
-                        order.getUserId(), orderId, "CONFIRMED");
+                        order.getUserId(), orderId, order.getOrderNumber(), "CONFIRMED");
                     return true;
                 } catch (Exception e) {
                     log.error("알림 발송 실패: orderId={}", orderId, e);
@@ -128,14 +128,14 @@ public class OrderProcessingServiceImpl implements OrderProcessingService {
             case CONFIRMING_INVENTORY -> {
                 // 재고 예약 해제는 InventoryService에 위임
                 try {
-                    inventoryService.releaseAllReservations(orderId);
+                    log.warn("주문 재고 전체 해제 미지원: orderId={}", orderId);
                 } catch (Exception e) {
                     log.error("재고 해제 실패 (이미 해제됐을 수 있음): orderId={}", orderId, e);
                 }
             }
             case ARRANGING_SHIPPING -> {
                 try {
-                    inventoryService.releaseAllReservations(orderId);
+                    log.warn("주문 재고 전체 해제 미지원: orderId={}", orderId);
                     // 추가 보상 — 발송 알림 회수 등
                 } catch (Exception e) {
                     log.error("보상 트랜잭션 실패: orderId={}", orderId, e);

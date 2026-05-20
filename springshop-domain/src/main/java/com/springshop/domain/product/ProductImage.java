@@ -147,6 +147,19 @@ public class ProductImage extends BaseEntity {
         this.altText = alt;
     }
 
+    public Long getProductId() {
+        return product.getId();
+    }
+
+    public void updateUrl(String imageUrl, String altText) {
+        this.imageUrl = validateUrl(imageUrl);
+        this.altText = altText;
+    }
+
+    public void changeDisplayOrder(int order) {
+        changeOrder(order);
+    }
+
     /**
      * 종횡비를 반환한다(미설정 시 null).
      */

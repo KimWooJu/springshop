@@ -26,10 +26,10 @@ public interface ProductMapper {
      */
     @Mapping(target = "status", source = "statusLabel")
     @Mapping(target = "price", source = "basePrice")
-    @Mapping(target = "imageUrl", ignore = true)
-    @Mapping(target = "categoryName", ignore = true)
-    @Mapping(target = "brandName", ignore = true)
-    @Mapping(target = "stockQuantity", source = "totalStock")
+    @Mapping(target = "images", ignore = true)
+    @Mapping(target = "category", ignore = true)
+    @Mapping(target = "brand", ignore = true)
+    @Mapping(target = "stockStatus", ignore = true)
     ProductResponse toResponse(Product product);
 
     /**
@@ -38,9 +38,7 @@ public interface ProductMapper {
      * @param product 변환할 상품 엔티티
      * @return ProductSummaryResponse DTO
      */
-    @Mapping(target = "status", source = "statusLabel")
     @Mapping(target = "price", source = "basePrice")
-    @Mapping(target = "imageUrl", ignore = true)
     @Mapping(target = "categoryName", ignore = true)
     ProductSummaryResponse toSummaryResponse(Product product);
 

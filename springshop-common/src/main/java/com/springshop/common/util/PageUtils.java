@@ -43,10 +43,10 @@ public final class PageUtils {
     public static PageInfo toPageInfo(int page, int size, long totalElements) {
         int totalPages = calculateTotalPages(totalElements, size);
         return new PageInfo(
-                page,
-                size,
                 totalElements,
                 totalPages,
+                page,
+                size,
                 page == 0,
                 page >= totalPages - 1,
                 page > 0,
@@ -75,7 +75,7 @@ public final class PageUtils {
      */
     public static List<SortOption> parseSort(String sortStr) {
         if (sortStr == null || sortStr.isBlank()) return List.of();
-        return SortOption.parseList(sortStr);
+        return SortOption.parseMultiple(sortStr);
     }
 
     public record PageResponse<T>(List<T> content, PageInfo pageInfo) {

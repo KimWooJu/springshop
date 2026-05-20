@@ -53,7 +53,7 @@ public class NotificationController {
     })
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<List<NotificationResponse>>> getMyNotifications(
+    public ResponseEntity<ApiResponse<NotificationResponse>> getMyNotifications(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String type,

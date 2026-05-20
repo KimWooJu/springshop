@@ -19,11 +19,7 @@ public interface CouponMapper {
      * @param coupon 변환할 쿠폰 엔티티
      * @return CouponResponse DTO
      */
-    @Mapping(target = "status", source = "couponStatus")
-    @Mapping(target = "discountDisplay", ignore = true)
-    @Mapping(target = "isExpired", ignore = true)
-    @Mapping(target = "isUsed", ignore = true)
-    @Mapping(target = "remainingDays", ignore = true)
+    @Mapping(target = "expired", ignore = true)
     CouponResponse toResponse(Coupon coupon);
 
     /**

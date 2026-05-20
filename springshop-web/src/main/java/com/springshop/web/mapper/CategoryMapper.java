@@ -40,7 +40,7 @@ public interface CategoryMapper {
      * @return CategoryBreadcrumbResponse DTO
      */
     @Mapping(target = "depth", ignore = true)
-    @Mapping(target = "isLeaf", ignore = true)
+    @Mapping(target = "path", ignore = true)
     CategoryBreadcrumbResponse toBreadcrumbResponse(Category category);
 
     /**

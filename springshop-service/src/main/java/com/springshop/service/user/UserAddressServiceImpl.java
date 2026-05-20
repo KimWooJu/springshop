@@ -1,9 +1,13 @@
 package com.springshop.service.user;
 
+import com.springshop.domain.user.User;
 import com.springshop.domain.user.UserAddress;
 import com.springshop.domain.user.UserAddressRepository;
-import com.springshop.domain.common.exception.InvalidStateException;
-import com.springshop.domain.common.exception.ResourceNotFoundException;
+import com.springshop.domain.user.UserRepository;
+import com.springshop.domain.vo.Address;
+import com.springshop.domain.vo.PhoneNumber;
+import com.springshop.common.exception.InvalidStateException;
+import com.springshop.common.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -51,6 +55,7 @@ public class UserAddressServiceImpl {
     private static final String POSTAL_CODE_PATTERN = "\\d{5}";
 
     private final UserAddressRepository addressRepository;
+    private final UserRepository userRepository;
 
     /**
      * 주소 추가. (요구사항: 최대 10개, isDefault 처리)
@@ -80,18 +85,12 @@ public class UserAddressServiceImpl {
             clearDefaultAddressFor(userId);
         }
 
-        var address = UserAddress.create(
-            userId,
-            recipientName,
-            phone,
-            zipCode,
-            street,
-            null,         // addressLine2
-            city,
-            province,
-            "KR",
-            null          // deliveryNote
-        );
+        var user = userRepository.findById(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다: " + userId));
+        var addressVo = new Address(zipCode, street,
+            city != null ? city : "N/A", province != null ? province : "N/A", "KR", null);
+        var phoneVo = phone != null ? new PhoneNumber(phone) : null;
+        var address = UserAddress.create(user, recipientName, addressVo, recipientName, phoneVo);
         if (isDefault || existing == 0) {
             address.setAsDefault();
         }

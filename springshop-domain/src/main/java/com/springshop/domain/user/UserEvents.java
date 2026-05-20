@@ -112,4 +112,26 @@ public final class UserEvents {
             return new UserWithdrawnEvent(UUID.randomUUID(), Instant.now(), userId, reason);
         }
     }
+
+    /**
+     * 비밀번호 변경 이벤트.
+     */
+    public record PasswordChangedEvent(
+            UUID eventId,
+            Instant occurredAt,
+            Long aggregateId,
+            String changedBy
+    ) implements DomainEvent {
+
+        public PasswordChangedEvent {
+            Objects.requireNonNull(aggregateId, "aggregateId");
+            if (eventId == null) eventId = UUID.randomUUID();
+            if (occurredAt == null) occurredAt = Instant.now();
+            if (changedBy == null) changedBy = "SELF";
+        }
+
+        public static PasswordChangedEvent of(Long userId, String changedBy) {
+            return new PasswordChangedEvent(UUID.randomUUID(), Instant.now(), userId, changedBy);
+        }
+    }
 }

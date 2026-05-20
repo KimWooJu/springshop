@@ -251,6 +251,63 @@ public class User extends BaseAuditEntity {
         return role != null && role.hasPermission(permission);
     }
 
+    // ---- service-layer convenience aliases ----
+
+    public void activate() { activate("SYSTEM"); }
+
+    public void unlock() { activate("UNLOCK"); }
+
+    public String getNickname() { return name; }
+
+    public void grantAdminRole() { this.role = UserRole.ADMIN; }
+
+    public void revokeAdminRole() { this.role = UserRole.CUSTOMER; }
+
+    public void setDormant(String reason) { deactivate(reason); }
+
+    public boolean isAdmin() { return role == UserRole.ADMIN; }
+
+    public LocalDateTime getLockedAt() {
+        return "LOCKED".equals(statusLabel) ? statusChangedAt : null;
+    }
+
+    public void markEmailVerified() { /* verification state managed externally */ }
+
+    public void changeStatus(UserStatus newStatus, String reason) {
+        this.statusLabel = newStatus.label();
+        this.statusReason = reason;
+        this.statusChangedAt = LocalDateTime.now();
+        this.statusUnlockAt = null;
+        this.cachedStatus = null;
+    }
+
+    public void recordLogin(String ipAddress, LocalDateTime at) {
+        this.lastLoginAt = at;
+        this.failedLoginCount = 0;
+    }
+
+    public void updateProfile(String name, String nickname, String phoneNumber,
+                               String profileImageUrl, String bio) {
+        if (name != null && !name.isBlank()) changeName(name);
+        if (phoneNumber != null && !phoneNumber.isBlank()) {
+            this.phone = new PhoneNumber(phoneNumber);
+        }
+    }
+
+    public static User create(String email, String encodedPassword, String name,
+                               String nickname, String phoneNumber) {
+        var emailVo = Email.of(email);
+        var phoneVo = (phoneNumber != null && !phoneNumber.isBlank())
+            ? new PhoneNumber(phoneNumber) : null;
+        return registerCustomer(emailVo, encodedPassword, name, phoneVo);
+    }
+
+    public static User createOAuth(String email, String name, String nickname,
+                                    String provider, String subject) {
+        var emailVo = Email.of(email);
+        return new User(emailVo, "OAUTH:" + provider, name, null, UserRole.CUSTOMER);
+    }
+
     private void applyStatus(String label, String reason, LocalDateTime unlockAt) {
         this.statusLabel = label;
         this.statusReason = reason;

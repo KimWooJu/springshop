@@ -55,7 +55,7 @@ public class CouponController {
     })
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<List<CouponResponse>>> getMyCoupons(
+    public ResponseEntity<ApiResponse<CouponResponse>> getMyCoupons(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "false") boolean includeExpired,
@@ -99,7 +99,7 @@ public class CouponController {
     @Operation(summary = "전체 쿠폰 목록 (관리자)", description = "관리자가 시스템 내 모든 쿠폰을 페이징 조회한다.")
     @GetMapping("/admin")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<List<CouponResponse>>> adminCouponList(
+    public ResponseEntity<ApiResponse<CouponResponse>> adminCouponList(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "30") int size,
             @RequestParam(required = false) String status,
@@ -243,7 +243,7 @@ public class CouponController {
     @Operation(summary = "쿠폰 사용 이력", description = "특정 쿠폰의 사용 이력을 조회한다 (관리자).")
     @GetMapping("/admin/{id}/usage")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getCouponUsage(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getCouponUsage(
             @PathVariable Long id,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {

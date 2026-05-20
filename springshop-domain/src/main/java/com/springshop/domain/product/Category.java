@@ -204,6 +204,22 @@ public class Category extends BaseEntity {
         this.iconUrl = url;
     }
 
+    public void detachParent() {
+        this.parentId = null;
+        this.level = 1;
+        this.fullPath = PATH_SEPARATOR + this.name;
+    }
+
+    public void moveTo(Category newParent) {
+        Objects.requireNonNull(newParent, "newParent 필수");
+        this.parentId = newParent.getId();
+        this.level = newParent.level + 1;
+        if (this.level > MAX_DEPTH) {
+            throw new IllegalArgumentException("최대 깊이 초과: " + this.level);
+        }
+        this.fullPath = buildPath(newParent.fullPath, this.name);
+    }
+
     public void deactivate() {
         this.isActive = false;
     }

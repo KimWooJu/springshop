@@ -17,11 +17,11 @@ public final class ValidationUtils {
     }
 
     public static boolean isValidEmail(String email) {
-        return matches(email, RegexConstants.EMAIL_PATTERN);
+        return matches(email, RegexConstants.EMAIL);
     }
 
     public static boolean isValidPhone(String phone) {
-        return matches(phone, RegexConstants.PHONE_PATTERN);
+        return matches(phone, RegexConstants.PHONE_KR);
     }
 
     /**
@@ -29,11 +29,11 @@ public final class ValidationUtils {
      * 8자 이상, 영문/숫자/특수문자 포함.
      */
     public static boolean isValidPassword(String password) {
-        return matches(password, RegexConstants.PASSWORD_PATTERN);
+        return matches(password, RegexConstants.PASSWORD);
     }
 
     public static boolean isValidUrl(String url) {
-        return matches(url, RegexConstants.URL_PATTERN);
+        return matches(url, RegexConstants.URL);
     }
 
     public static boolean isValidCreditCard(String card) {

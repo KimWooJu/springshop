@@ -101,7 +101,7 @@ public interface ProductSearchService {
                     && p.getTags().stream().anyMatch(wantedTags::contains));
             }
             if (Boolean.TRUE.equals(condition.inStockOnly())) {
-                stream = stream.filter(p -> p.getStatus() == ProductStatus.ON_SALE);
+                stream = stream.filter(p -> p.getStatus() instanceof ProductStatus.Active);
             }
             if (Boolean.TRUE.equals(condition.onSaleOnly())) {
                 stream = stream.filter(Product::isOnDiscount);
@@ -120,9 +120,9 @@ public interface ProductSearchService {
         public List<Product> findSimilar(Long productId, int limit) {
             var target = productRepository.findById(productId).orElse(null);
             if (target == null) return List.of();
-            return productRepository.findAllByCategoryId(target.getCategoryId()).stream()
+            return productRepository.findByCategoryId(target.getCategoryId()).stream()
                 .filter(p -> !p.getId().equals(productId))
-                .filter(p -> p.getStatus() == ProductStatus.ON_SALE)
+                .filter(p -> p.getStatus() instanceof ProductStatus.Active)
                 .sorted(similarityComparator(target))
                 .limit(limit)
                 .toList();
@@ -133,7 +133,7 @@ public interface ProductSearchService {
         public List<Product> findRelated(List<String> tags, int limit) {
             if (tags == null || tags.isEmpty()) return List.of();
             return productRepository.findAll().stream()
-                .filter(p -> p.getStatus() == ProductStatus.ON_SALE)
+                .filter(p -> p.getStatus() instanceof ProductStatus.Active)
                 .filter(p -> p.getTags() != null
                     && p.getTags().stream().anyMatch(tags::contains))
                 .sorted(Comparator.comparingLong(Product::getSalesCount).reversed())

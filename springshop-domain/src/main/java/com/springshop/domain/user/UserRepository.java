@@ -75,4 +75,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
      */
     @Query("SELECT u FROM User u WHERE u.name LIKE %:keyword%")
     Page<User> searchByName(@Param("keyword") String keyword, Pageable pageable);
+
+    /**
+     * 닉네임(이름) 존재 여부 확인. User 엔티티에 별도 nickname 필드가 없어 name으로 대체.
+     */
+    @Query("SELECT COUNT(u) > 0 FROM User u WHERE u.name = :nickname")
+    boolean existsByNickname(@Param("nickname") String nickname);
 }

@@ -113,7 +113,8 @@ public enum ErrorCode {
     SYSTEM_EXTERNAL_SERVICE_ERROR("SYSTEM_007", HttpStatus.BAD_GATEWAY, "외부 서비스 오류: %s"),
     SYSTEM_DATABASE_ERROR("SYSTEM_008", HttpStatus.INTERNAL_SERVER_ERROR, "데이터베이스 오류"),
     SYSTEM_CACHE_ERROR("SYSTEM_009", HttpStatus.INTERNAL_SERVER_ERROR, "캐시 시스템 오류"),
-    SYSTEM_FILE_UPLOAD_FAILED("SYSTEM_010", HttpStatus.INTERNAL_SERVER_ERROR, "파일 업로드 실패: %s");
+    SYSTEM_FILE_UPLOAD_FAILED("SYSTEM_010", HttpStatus.INTERNAL_SERVER_ERROR, "파일 업로드 실패: %s"),
+    SYSTEM_INVALID_STATE("SYSTEM_011", HttpStatus.CONFLICT, "잘못된 상태입니다: %s");
 
     private final String code;
     private final HttpStatus httpStatus;

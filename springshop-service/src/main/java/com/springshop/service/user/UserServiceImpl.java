@@ -3,14 +3,14 @@ package com.springshop.service.user;
 import com.springshop.domain.user.User;
 import com.springshop.domain.user.UserRepository;
 import com.springshop.domain.user.UserStatus;
-import com.springshop.domain.user.event.PasswordChangedEvent;
-import com.springshop.domain.user.event.UserActivatedEvent;
-import com.springshop.domain.user.event.UserLockedEvent;
-import com.springshop.domain.user.event.UserRegisteredEvent;
-import com.springshop.domain.user.event.UserWithdrawnEvent;
-import com.springshop.domain.common.exception.DuplicateResourceException;
-import com.springshop.domain.common.exception.InvalidStateException;
-import com.springshop.domain.common.exception.ResourceNotFoundException;
+import com.springshop.domain.user.UserEvents.PasswordChangedEvent;
+import com.springshop.domain.user.UserEvents.UserActivatedEvent;
+import com.springshop.domain.user.UserEvents.UserLockedEvent;
+import com.springshop.domain.user.UserEvents.UserRegisteredEvent;
+import com.springshop.domain.user.UserEvents.UserWithdrawnEvent;
+import com.springshop.common.exception.DuplicateResourceException;
+import com.springshop.common.exception.InvalidStateException;
+import com.springshop.common.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -106,12 +106,8 @@ public class UserServiceImpl implements UserService {
         var verificationToken = generateSecureToken();
         emailVerificationStore.put(verificationToken, saved.getId());
 
-        eventPublisher.publishEvent(new UserRegisteredEvent(
-            saved.getId(),
-            saved.getEmail(),
-            saved.getName(),
-            verificationToken,
-            LocalDateTime.now()
+        eventPublisher.publishEvent(UserRegisteredEvent.of(
+            saved.getId(), saved.getEmail().getValue(), saved.getName(), saved.getRole()
         ));
 
         log.info("사용자 등록 완료: id={}, email={}", saved.getId(), saved.getEmail());
@@ -122,16 +118,16 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public User activate(Long userId) {
         var user = loadUser(userId);
-        if (user.getStatus() == UserStatus.ACTIVE) {
+        if (user.getStatus() instanceof UserStatus.Active) {
             log.debug("이미 활성 상태인 사용자: id={}", userId);
             return user;
         }
-        if (user.getStatus() == UserStatus.WITHDRAWN) {
+        if (user.getStatus() instanceof UserStatus.Withdrawn) {
             throw new InvalidStateException("탈퇴한 사용자는 활성화할 수 없습니다.");
         }
         user.activate();
         var saved = userRepository.save(user);
-        eventPublisher.publishEvent(new UserActivatedEvent(userId, LocalDateTime.now()));
+        eventPublisher.publishEvent(UserActivatedEvent.of(userId, "ADMIN"));
         log.info("사용자 활성화 완료: id={}", userId);
         return saved;
     }
@@ -140,7 +136,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public User deactivate(Long userId, String reason) {
         var user = loadUser(userId);
-        if (user.getStatus() != UserStatus.ACTIVE) {
+        if (!(user.getStatus() instanceof UserStatus.Active)) {
             throw new InvalidStateException("활성 상태가 아닌 사용자입니다: " + user.getStatus());
         }
         user.deactivate(reason);
@@ -154,7 +150,7 @@ public class UserServiceImpl implements UserService {
         var user = loadUser(userId);
         user.lock(reason, unlockAt);
         var saved = userRepository.save(user);
-        eventPublisher.publishEvent(new UserLockedEvent(userId, reason, unlockAt, LocalDateTime.now()));
+        eventPublisher.publishEvent(UserLockedEvent.of(userId, reason, 0));
         log.warn("사용자 잠금: id={}, reason={}, unlockAt={}", userId, reason, unlockAt);
         return saved;
     }
@@ -163,7 +159,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public User unlock(Long userId) {
         var user = loadUser(userId);
-        if (user.getStatus() != UserStatus.LOCKED) {
+        if (!(user.getStatus() instanceof UserStatus.Locked)) {
             throw new InvalidStateException("잠금 상태가 아닙니다: " + user.getStatus());
         }
         user.unlock();
@@ -178,9 +174,7 @@ public class UserServiceImpl implements UserService {
         var user = loadUser(userId);
         user.withdraw(reason);
         userRepository.save(user);
-        eventPublisher.publishEvent(new UserWithdrawnEvent(
-            userId, user.getEmail(), reason, LocalDateTime.now()
-        ));
+        eventPublisher.publishEvent(UserWithdrawnEvent.of(userId, reason));
         log.info("회원 탈퇴 처리 완료: id={}, reason={}", userId, reason);
     }
 
@@ -218,7 +212,7 @@ public class UserServiceImpl implements UserService {
         }
         user.changePassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
-        eventPublisher.publishEvent(new PasswordChangedEvent(userId, LocalDateTime.now()));
+        eventPublisher.publishEvent(PasswordChangedEvent.of(userId, "SELF"));
         log.info("비밀번호 변경 완료: userId={}", userId);
     }
 
@@ -320,7 +314,7 @@ public class UserServiceImpl implements UserService {
             .collect(Collectors.groupingBy(User::getStatus, Collectors.counting()))
             .entrySet().stream()
             .map(e -> new UserStatusCount(e.getKey(), e.getValue()))
-            .sorted(Comparator.comparing(c -> c.status().name()))
+            .sorted(Comparator.comparing(c -> c.status().label()))
             .toList();
     }
 
@@ -374,7 +368,7 @@ public class UserServiceImpl implements UserService {
     public int bulkSetDormant(int idleDays) {
         var threshold = LocalDateTime.now().minusDays(idleDays);
         var targets = userRepository.findAll().stream()
-            .filter(u -> u.getStatus() == UserStatus.ACTIVE)
+            .filter(u -> u.getStatus() instanceof UserStatus.Active)
             .filter(u -> u.getLastLoginAt() == null || u.getLastLoginAt().isBefore(threshold))
             .toList();
 
@@ -391,11 +385,11 @@ public class UserServiceImpl implements UserService {
         var all = userRepository.findAll();
         var today = LocalDate.now();
         long total = all.size();
-        long active = all.stream().filter(u -> u.getStatus() == UserStatus.ACTIVE).count();
-        long dormant = all.stream().filter(u -> u.getStatus() == UserStatus.DORMANT).count();
-        long withdrawn = all.stream().filter(u -> u.getStatus() == UserStatus.WITHDRAWN).count();
+        long active = all.stream().filter(u -> u.getStatus() instanceof UserStatus.Active).count();
+        long dormant = all.stream().filter(u -> u.getStatus() instanceof UserStatus.Inactive).count();
+        long withdrawn = all.stream().filter(u -> u.getStatus() instanceof UserStatus.Withdrawn).count();
         long lockedToday = all.stream()
-            .filter(u -> u.getStatus() == UserStatus.LOCKED)
+            .filter(u -> u.getStatus() instanceof UserStatus.Locked)
             .filter(u -> u.getLockedAt() != null && u.getLockedAt().toLocalDate().equals(today))
             .count();
         long newToday = all.stream()
@@ -434,7 +428,7 @@ public class UserServiceImpl implements UserService {
     private boolean matches(User u, UserSearchCondition c) {
         if (c.keyword() != null && !c.keyword().isBlank()) {
             var k = c.keyword().toLowerCase();
-            boolean hit = (u.getEmail() != null && u.getEmail().toLowerCase().contains(k))
+            boolean hit = (u.getEmail() != null && u.getEmail().getValue().toLowerCase().contains(k))
                 || (u.getNickname() != null && u.getNickname().toLowerCase().contains(k))
                 || (u.getName() != null && u.getName().toLowerCase().contains(k));
             if (!hit) return false;

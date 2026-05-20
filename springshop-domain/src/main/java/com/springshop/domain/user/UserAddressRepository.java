@@ -47,6 +47,9 @@ public interface UserAddressRepository extends JpaRepository<UserAddress, Long> 
     @Query("UPDATE UserAddress a SET a.isDefault = false WHERE a.user.id = :userId")
     int unsetAllDefaults(@Param("userId") Long userId);
 
+    default java.util.List<UserAddress> findAllByUserId(Long userId) { return findByUserId(userId); }
+    default long countByUserId(Long userId) { return countActiveByUserId(userId); }
+
     /**
      * 배송지명으로 검색.
      */

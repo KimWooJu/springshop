@@ -20,24 +20,7 @@ import java.util.UUID;
  *
  * @author SpringShop Domain Team
  */
-public sealed interface DomainEvent
-        permits DomainEvent.GenericEvent,
-                com.springshop.domain.user.UserEvents.UserRegisteredEvent,
-                com.springshop.domain.user.UserEvents.UserActivatedEvent,
-                com.springshop.domain.user.UserEvents.UserLockedEvent,
-                com.springshop.domain.user.UserEvents.UserWithdrawnEvent,
-                com.springshop.domain.product.ProductEvents.ProductCreatedEvent,
-                com.springshop.domain.product.ProductEvents.ProductPublishedEvent,
-                com.springshop.domain.product.ProductEvents.ProductOutOfStockEvent,
-                com.springshop.domain.product.ProductEvents.ProductDiscontinuedEvent,
-                com.springshop.domain.order.OrderEvents.OrderPlacedEvent,
-                com.springshop.domain.order.OrderEvents.OrderConfirmedEvent,
-                com.springshop.domain.order.OrderEvents.OrderShippedEvent,
-                com.springshop.domain.order.OrderEvents.OrderDeliveredEvent,
-                com.springshop.domain.order.OrderEvents.OrderCancelledEvent,
-                com.springshop.domain.payment.PaymentEvents.PaymentCompletedEvent,
-                com.springshop.domain.payment.PaymentEvents.PaymentFailedEvent,
-                com.springshop.domain.payment.PaymentEvents.RefundCompletedEvent {
+public interface DomainEvent {
 
     /**
      * 이벤트의 고유 식별자.
@@ -126,6 +109,7 @@ public sealed interface DomainEvent
                     "Payment failed: id=" + pmf.aggregateId() + ", reason=" + pmf.reason();
             case com.springshop.domain.payment.PaymentEvents.RefundCompletedEvent rc ->
                     "Refund completed: id=" + rc.aggregateId();
+            default -> event.eventType() + ": aggregateId=" + event.aggregateId();
         };
     }
 }

@@ -55,7 +55,7 @@ public class ReviewController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
     })
     @GetMapping("/products/{productId}")
-    public ResponseEntity<ApiResponse<List<ReviewResponse>>> getProductReviews(
+    public ResponseEntity<ApiResponse<ReviewResponse>> getProductReviews(
             @Parameter(description = "상품 ID", required = true) @PathVariable Long productId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -192,7 +192,7 @@ public class ReviewController {
     @Operation(summary = "검수 대기 리뷰 (관리자)", description = "관리자가 검수 대기 중인 리뷰 목록을 조회한다.")
     @GetMapping("/admin")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<List<ReviewResponse>>> getPendingReviews(
+    public ResponseEntity<ApiResponse<ReviewResponse>> getPendingReviews(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "30") int size,
             @RequestParam(defaultValue = "PENDING") String status,

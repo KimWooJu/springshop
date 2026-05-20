@@ -47,13 +47,16 @@ public class UserPrincipalService implements UserDetailsService {
         }
 
         // 목업 UserPrincipal 생성 - 실제 구현 시 UserRepository.findByEmail(email)로 대체
-        Collection<GrantedAuthority> authorities = resolveAuthorities(email);
+        String role = email.contains("admin") ? "ROLE_ADMIN" : "ROLE_USER";
         return UserPrincipal.builder()
                 .id(1L)
                 .email(email)
                 .password("{bcrypt}$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG")
-                .authorities(authorities)
+                .role(role)
                 .enabled(true)
+                .accountNonLocked(true)
+                .accountNonExpired(true)
+                .credentialsNonExpired(true)
                 .build();
     }
 

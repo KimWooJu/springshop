@@ -180,7 +180,7 @@ public class SecurityUtils {
                     .id(userId)
                     .email(userEmail)
                     .password("")
-                    .authorities(List.of())
+                    .role("ROLE_USER")
                     .enabled(true)
                     .build();
             var auth = new org.springframework.security.authentication

@@ -110,4 +110,23 @@ public final class OrderEvents {
             return new OrderCancelledEvent(UUID.randomUUID(), Instant.now(), orderId, reason);
         }
     }
+
+    /** 반품 신청됨. */
+    public record OrderReturnRequestedEvent(
+            UUID eventId,
+            Instant occurredAt,
+            Long aggregateId,
+            String reason
+    ) implements DomainEvent {
+
+        public OrderReturnRequestedEvent {
+            if (eventId == null) eventId = UUID.randomUUID();
+            if (occurredAt == null) occurredAt = Instant.now();
+            if (reason == null) reason = "사유 없음";
+        }
+
+        public static OrderReturnRequestedEvent of(Long orderId, String reason) {
+            return new OrderReturnRequestedEvent(UUID.randomUUID(), Instant.now(), orderId, reason);
+        }
+    }
 }

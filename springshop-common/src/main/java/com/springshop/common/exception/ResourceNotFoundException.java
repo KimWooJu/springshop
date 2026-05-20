@@ -15,6 +15,12 @@ public class ResourceNotFoundException extends BusinessException {
     private final String resourceName;
     private final Object identifier;
 
+    public ResourceNotFoundException(String message) {
+        super(ErrorCode.SYSTEM_NOT_FOUND, message);
+        this.resourceName = message;
+        this.identifier = null;
+    }
+
     public ResourceNotFoundException(String resourceName, Object identifier) {
         super(resolveErrorCode(resourceName), "%s(id=%s)".formatted(resourceName, identifier));
         this.resourceName = Objects.requireNonNull(resourceName);

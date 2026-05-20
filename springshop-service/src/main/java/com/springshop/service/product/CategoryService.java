@@ -2,9 +2,9 @@ package com.springshop.service.product;
 
 import com.springshop.domain.product.Category;
 import com.springshop.domain.product.CategoryRepository;
-import com.springshop.domain.common.exception.DuplicateResourceException;
-import com.springshop.domain.common.exception.InvalidStateException;
-import com.springshop.domain.common.exception.ResourceNotFoundException;
+import com.springshop.common.exception.DuplicateResourceException;
+import com.springshop.common.exception.InvalidStateException;
+import com.springshop.common.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -71,7 +71,7 @@ public interface CategoryService {
             validate(name, slug);
             if (categoryRepository.existsBySlug(slug))
                 throw new DuplicateResourceException("이미 사용 중인 슬러그: " + slug);
-            var category = Category.createRoot(name, slug);
+            var category = Category.root(name, slug);
             return categoryRepository.save(category);
         }
 
@@ -83,7 +83,7 @@ public interface CategoryService {
             var parent = loadCategory(parentId);
             if (categoryRepository.existsBySlug(slug))
                 throw new DuplicateResourceException("이미 사용 중인 슬러그: " + slug);
-            var category = Category.createChild(parent, name, slug);
+            var category = Category.child(name, slug, parent);
             return categoryRepository.save(category);
         }
 

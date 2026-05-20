@@ -24,7 +24,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.StructuredTaskScope;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -246,25 +248,24 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     /**
-     * Virtual Thread + StructuredTaskScope 로 PG 호출 타임아웃을 안전하게 제어한다.
+     * Virtual Thread Executor 로 PG 호출 타임아웃을 안전하게 제어한다.
      */
     private PaymentGatewayAdapter.PaymentApprovalResult invokePgWithTimeout(Payment payment, PaymentMethod method) {
-        try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
-            StructuredTaskScope.Subtask<PaymentGatewayAdapter.PaymentApprovalResult> task =
-                    scope.fork(() -> gatewayAdapter.approve(payment, method));
-
-            scope.joinUntil(java.time.Instant.now().plus(Duration.ofSeconds(PG_TIMEOUT_SECONDS)));
-            scope.throwIfFailed(e -> PaymentException.pgError("PG_FORK_FAILED", e.getMessage()));
-
-            return task.get();
-        } catch (TimeoutException e) {
-            log.warn("PG 응답 타임아웃: paymentId={}", payment.getId());
-            return new PaymentGatewayAdapter.PaymentApprovalResult(false, null, "TIMEOUT", "PG 응답 시간 초과");
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return new PaymentGatewayAdapter.PaymentApprovalResult(false, null, "INTERRUPTED", "결제 처리 인터럽트");
-        } catch (PaymentException e) {
-            return new PaymentGatewayAdapter.PaymentApprovalResult(false, null, "PG_ERROR", e.getMessage());
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            var future = executor.submit(() -> gatewayAdapter.approve(payment, method));
+            try {
+                return future.get(PG_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                future.cancel(true);
+                log.warn("PG 응답 타임아웃: paymentId={}", payment.getId());
+                return new PaymentGatewayAdapter.PaymentApprovalResult(false, null, "TIMEOUT", "PG 응답 시간 초과");
+            } catch (ExecutionException e) {
+                if (e.getCause() instanceof PaymentException pe) throw pe;
+                return new PaymentGatewayAdapter.PaymentApprovalResult(false, null, "PG_ERROR", e.getMessage());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return new PaymentGatewayAdapter.PaymentApprovalResult(false, null, "INTERRUPTED", "결제 처리 인터럽트");
+            }
         }
     }
 

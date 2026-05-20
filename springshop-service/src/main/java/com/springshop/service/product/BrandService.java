@@ -2,9 +2,9 @@ package com.springshop.service.product;
 
 import com.springshop.domain.product.Brand;
 import com.springshop.domain.product.BrandRepository;
-import com.springshop.domain.common.exception.DuplicateResourceException;
-import com.springshop.domain.common.exception.InvalidStateException;
-import com.springshop.domain.common.exception.ResourceNotFoundException;
+import com.springshop.common.exception.DuplicateResourceException;
+import com.springshop.common.exception.InvalidStateException;
+import com.springshop.common.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -72,16 +72,12 @@ public interface BrandService {
         @CacheEvict(value = "brand", allEntries = true)
         public Brand create(BrandCreateCommand command) {
             validate(command.name(), command.slug());
-            if (brandRepository.existsBySlug(command.slug()))
-                throw new DuplicateResourceException("이미 사용 중인 슬러그: " + command.slug());
-            var brand = Brand.create(
-                command.name(),
-                command.slug(),
-                command.countryCode(),
-                command.description(),
-                command.logoUrl(),
-                command.websiteUrl()
-            );
+            if (brandRepository.existsByName(command.name()))
+                throw new DuplicateResourceException("이미 사용 중인 브랜드명: " + command.name());
+            var brand = Brand.of(command.name(), command.countryCode());
+            if (command.description() != null) brand.updateDescription(command.description());
+            if (command.logoUrl() != null) brand.updateLogo(command.logoUrl());
+            if (command.websiteUrl() != null) brand.updateWebsite(command.websiteUrl());
             return brandRepository.save(brand);
         }
 
@@ -90,7 +86,10 @@ public interface BrandService {
         @CacheEvict(value = "brand", key = "#brandId")
         public Brand update(Long brandId, BrandUpdateCommand command) {
             var brand = load(brandId);
-            brand.update(command.name(), command.description(), command.logoUrl(), command.websiteUrl());
+            if (command.name() != null) brand.rename(command.name());
+            if (command.description() != null) brand.updateDescription(command.description());
+            if (command.logoUrl() != null) brand.updateLogo(command.logoUrl());
+            if (command.websiteUrl() != null) brand.updateWebsite(command.websiteUrl());
             return brandRepository.save(brand);
         }
 
@@ -119,7 +118,7 @@ public interface BrandService {
         @CacheEvict(value = "brand", key = "#brandId")
         public Brand deactivate(Long brandId, String reason) {
             var brand = load(brandId);
-            brand.deactivate(reason);
+            brand.deactivate();
             return brandRepository.save(brand);
         }
 
@@ -131,7 +130,7 @@ public interface BrandService {
 
         @Override
         public Optional<Brand> findBySlug(String slug) {
-            return brandRepository.findBySlug(slug);
+            return brandRepository.findByName(slug);
         }
 
         @Override
@@ -154,7 +153,7 @@ public interface BrandService {
         @Override
         public List<Brand> findByCountry(String country) {
             return brandRepository.findAll().stream()
-                .filter(b -> country != null && country.equalsIgnoreCase(b.getCountryCode()))
+                .filter(b -> country != null && country.equalsIgnoreCase(b.getCountry()))
                 .sorted(Comparator.comparing(Brand::getName))
                 .toList();
         }

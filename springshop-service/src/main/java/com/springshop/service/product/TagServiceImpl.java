@@ -2,9 +2,9 @@ package com.springshop.service.product;
 
 import com.springshop.domain.product.Tag;
 import com.springshop.domain.product.TagRepository;
-import com.springshop.domain.common.exception.DuplicateResourceException;
-import com.springshop.domain.common.exception.InvalidStateException;
-import com.springshop.domain.common.exception.ResourceNotFoundException;
+import com.springshop.common.exception.DuplicateResourceException;
+import com.springshop.common.exception.InvalidStateException;
+import com.springshop.common.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;

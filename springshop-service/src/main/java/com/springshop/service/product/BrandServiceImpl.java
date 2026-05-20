@@ -2,9 +2,9 @@ package com.springshop.service.product;
 
 import com.springshop.domain.product.Brand;
 import com.springshop.domain.product.BrandRepository;
-import com.springshop.domain.common.exception.DuplicateResourceException;
-import com.springshop.domain.common.exception.InvalidStateException;
-import com.springshop.domain.common.exception.ResourceNotFoundException;
+import com.springshop.common.exception.DuplicateResourceException;
+import com.springshop.common.exception.InvalidStateException;
+import com.springshop.common.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -56,10 +56,11 @@ public class BrandServiceImpl {
     @CacheEvict(value = {CACHE_ACTIVE_BRANDS, CACHE_ALL_BRANDS}, allEntries = true)
     public Brand createBrand(String name, String slug, String countryCode, String description) {
         validate(name, slug);
-        if (brandRepository.existsBySlug(slug)) {
-            throw new DuplicateResourceException("이미 사용 중인 슬러그: " + slug);
+        if (brandRepository.existsByName(name)) {
+            throw new DuplicateResourceException("이미 사용 중인 브랜드명: " + name);
         }
-        var brand = Brand.create(name, slug, countryCode, description, null, null);
+        var brand = Brand.of(name, countryCode);
+        if (description != null) brand.updateDescription(description);
         var saved = brandRepository.save(brand);
         log.info("브랜드 생성: id={}, slug={}", saved.getId(), slug);
         return saved;
@@ -76,7 +77,10 @@ public class BrandServiceImpl {
         if (name != null && !name.isBlank()) {
             // 이름 유효성 체크
         }
-        brand.update(name, description, logoUrl, websiteUrl);
+        if (name != null && !name.isBlank()) brand.rename(name);
+        if (description != null) brand.updateDescription(description);
+        if (logoUrl != null) brand.updateLogo(logoUrl);
+        if (websiteUrl != null) brand.updateWebsite(websiteUrl);
         return brandRepository.save(brand);
     }
 
@@ -88,7 +92,7 @@ public class BrandServiceImpl {
     public Brand toggleActive(Long brandId) {
         var brand = load(brandId);
         if (brand.isActive()) {
-            brand.deactivate("관리자 비활성화");
+            brand.deactivate();
         } else {
             brand.activate();
         }
@@ -103,7 +107,7 @@ public class BrandServiceImpl {
     @CacheEvict(value = {CACHE_ACTIVE_BRANDS, CACHE_ALL_BRANDS}, allEntries = true)
     public Brand deactivate(Long brandId, String reason) {
         var brand = load(brandId);
-        brand.deactivate(reason);
+        brand.deactivate();
         return brandRepository.save(brand);
     }
 
@@ -150,7 +154,7 @@ public class BrandServiceImpl {
      * 슬러그로 조회.
      */
     public Optional<Brand> findBySlug(String slug) {
-        return brandRepository.findBySlug(slug);
+        return brandRepository.findByName(slug);
     }
 
     /**
@@ -160,7 +164,7 @@ public class BrandServiceImpl {
         if (countryCode == null) return List.of();
         var upper = countryCode.toUpperCase();
         return brandRepository.findAll().stream()
-            .filter(b -> upper.equals(b.getCountryCode()))
+            .filter(b -> upper.equals(b.getCountry()))
             .sorted(Comparator.comparing(Brand::getName))
             .toList();
     }

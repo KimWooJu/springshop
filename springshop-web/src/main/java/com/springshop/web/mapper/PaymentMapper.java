@@ -20,10 +20,10 @@ public interface PaymentMapper {
      * @param payment 변환할 결제 엔티티
      * @return PaymentResponse DTO
      */
-    @Mapping(target = "status", source = "paymentStatus")
-    @Mapping(target = "methodDisplay", ignore = true)
-    @Mapping(target = "pgTransactionId", ignore = true)
-    @Mapping(target = "refunds", ignore = true)
+    @Mapping(target = "status", ignore = true)
+    @Mapping(target = "method", ignore = true)
+    @Mapping(target = "transactionId", ignore = true)
+    @Mapping(target = "refundable", ignore = true)
     PaymentResponse toResponse(Payment payment);
 
     /**

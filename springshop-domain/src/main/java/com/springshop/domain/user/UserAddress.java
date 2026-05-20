@@ -151,6 +151,24 @@ public class UserAddress extends BaseEntity {
         this.isActive = true;
     }
 
+    public Long getUserId() { return user.getId(); }
+    public boolean isDefaultAddress() { return isDefault; }
+    public void setAsDefault() { markAsDefault(); }
+    public void unsetDefault() { unmarkAsDefault(); }
+
+    // ---- Address VO delegate getters ----
+    public String getState() { return address != null ? address.getProvince() : null; }
+    public String getCity() { return address != null ? address.getCity() : null; }
+    public String getAddressLine1() { return address != null ? address.getStreet() : null; }
+    public String getPhoneNumber() { return recipientPhone != null ? recipientPhone.getE164() : null; }
+
+    public void update(String recipientName, String phoneNumber, String postalCode,
+                       String addressLine1, String addressLine2,
+                       String city, String state, String country, String deliveryNote) {
+        if (recipientName != null && !recipientName.isBlank()) this.recipientName = recipientName;
+        if (deliveryNote != null) updateMemo(deliveryNote);
+    }
+
     /**
      * 다른 배송지와 같은 주소인지 검사한다(중복 등록 방지).
      */

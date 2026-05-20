@@ -4,18 +4,12 @@ import com.springshop.domain.order.Order;
 import com.springshop.domain.order.OrderItem;
 import com.springshop.domain.order.OrderRepository;
 import com.springshop.domain.order.OrderStatus;
-import com.springshop.domain.order.event.OrderCancelledEvent;
-import com.springshop.domain.order.event.OrderDeliveredEvent;
-import com.springshop.domain.order.event.OrderPlacedEvent;
-import com.springshop.domain.order.event.OrderShippedEvent;
-import com.springshop.domain.order.event.OrderReturnRequestedEvent;
 import com.springshop.domain.product.Product;
 import com.springshop.domain.product.ProductRepository;
 import com.springshop.domain.product.ProductStatus;
-import com.springshop.domain.common.exception.InvalidStateException;
-import com.springshop.domain.common.exception.ResourceNotFoundException;
+import com.springshop.common.exception.InvalidStateException;
+import com.springshop.common.exception.ResourceNotFoundException;
 import com.springshop.service.coupon.CouponService;
-import com.springshop.service.coupon.DiscountCalculatorService;
 import com.springshop.service.inventory.InventoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +27,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -41,12 +34,12 @@ import java.util.stream.Collectors;
  *
  * <p>주문 생성 시 다음 흐름을 보장한다:
  * <ol>
- *   <li>입력 유효성 검증 (수량/주소/사용자)</li>
+ *   <li>입력 유효성 검증 (수량/사용자)</li>
  *   <li>상품 조회 + 가격 정합성 검사</li>
- *   <li>재고 예약 ({@link InventoryService#reserveStock})</li>
+ *   <li>재고 예약 ({@link InventoryService#reserve})</li>
  *   <li>쿠폰 적용/할인 계산</li>
  *   <li>주문 엔티티 영속화</li>
- *   <li>{@code OrderPlacedEvent} 이벤트 발행</li>
+ *   <li>도메인 이벤트 발행</li>
  * </ol>
  *
  * <p>실패 시 트랜잭션 롤백으로 재고 예약도 자동 해제된다.
@@ -61,7 +54,6 @@ public class OrderServiceImpl implements OrderService {
     private final ProductRepository productRepository;
     private final InventoryService inventoryService;
     private final CouponService couponService;
-    private final DiscountCalculatorService discountCalculator;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -70,16 +62,11 @@ public class OrderServiceImpl implements OrderService {
         log.info("주문 생성 시도: userId={}, items={}", command.userId(), command.items().size());
         validate(command);
 
-        var orderNumber = generateOrderNumber();
         var lineItems = resolveLineItems(command.items());
 
         // 재고 예약
-        var reservations = new ArrayList<InventoryService.Reservation>();
         for (var item : lineItems) {
-            var reservation = inventoryService.reserveStock(
-                item.product().getId(), item.quantity(), orderNumber
-            );
-            reservations.add(reservation);
+            inventoryService.reserve(item.product().getId(), null, (int) item.quantity());
         }
 
         // 합계 계산
@@ -87,49 +74,46 @@ public class OrderServiceImpl implements OrderService {
             .map(LineDetail::lineAmount)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+        // 주문 생성
+        var order = Order.create(command.userId());
+
         // 쿠폰/할인 적용
-        BigDecimal discount = BigDecimal.ZERO;
         if (command.couponId() != null) {
-            var policy = couponService.resolveDiscountPolicy(command.couponId(), command.userId());
-            discount = discountCalculator.calculateDiscount(policy, subtotal);
-            couponService.reserveUsage(command.couponId(), command.userId(), orderNumber);
+            try {
+                var couponDto = couponService.getCoupon(command.couponId());
+                var result = couponService.applyCoupon(couponDto.code(), command.userId(), subtotal);
+                order.applyCoupon(couponDto.code(), result.discountAmount());
+            } catch (Exception e) {
+                log.warn("쿠폰 적용 실패, 할인 없이 진행: couponId={}", command.couponId(), e);
+            }
         }
 
-        var net = subtotal.subtract(discount).max(BigDecimal.ZERO);
-
-        var order = Order.create(
-            orderNumber,
-            command.userId(),
-            command.addressId(),
-            subtotal,
-            discount,
-            net,
-            command.paymentMethod(),
-            command.memo()
-        );
+        // 항목 추가
         lineItems.forEach(d ->
             order.addItem(OrderItem.of(
+                order,
                 d.product().getId(),
+                null,
                 d.product().getName(),
-                d.product().getSku(),
-                d.unitPrice(),
-                d.quantity()
+                null,
+                (int) d.quantity(),
+                d.unitPrice()
             ))
         );
 
+        // 메모
+        if (command.memo() != null) {
+            order.updateMemo(command.memo());
+        }
+
+        // 결제 요청 → PAYMENT_PENDING 으로 전이 + OrderPlacedEvent 등록
+        order.requestPayment();
+
         var saved = orderRepository.save(order);
+        publishDomainEvents(saved);
 
-        eventPublisher.publishEvent(new OrderPlacedEvent(
-            saved.getId(),
-            saved.getOrderNumber(),
-            saved.getUserId(),
-            saved.getNetAmount(),
-            saved.getItems().stream().map(OrderItem::getProductId).toList(),
-            LocalDateTime.now()
-        ));
-
-        log.info("주문 생성 완료: id={}, orderNumber={}, net={}",
-            saved.getId(), saved.getOrderNumber(), saved.getNetAmount());
+        log.info("주문 생성 완료: id={}, orderNumber={}, final={}",
+            saved.getId(), saved.getOrderNumber(), saved.getFinalAmount());
         return saved;
     }
 
@@ -139,24 +123,18 @@ public class OrderServiceImpl implements OrderService {
         var order = load(orderId);
         if (!order.getStatus().isCancellable()) {
             throw new InvalidStateException(
-                "취소 불가능한 상태입니다: " + order.getStatus()
+                "취소 불가능한 상태입니다: " + order.getStatus().label()
             );
         }
-        order.cancel(reason, requester);
+        order.cancel(reason);
         var saved = orderRepository.save(order);
 
         // 재고 해제
         order.getItems().forEach(item ->
-            inventoryService.releaseReservation(item.getProductId(), item.getQuantity(), order.getOrderNumber())
+            inventoryService.release(item.getProductId(), item.getVariantId(), item.getQuantity())
         );
-        // 쿠폰 사용 취소
-        if (order.getCouponId() != null) {
-            couponService.cancelUsage(order.getCouponId(), order.getOrderNumber());
-        }
 
-        eventPublisher.publishEvent(new OrderCancelledEvent(
-            orderId, order.getOrderNumber(), order.getUserId(), reason, LocalDateTime.now()
-        ));
+        publishDomainEvents(saved);
         log.info("주문 취소 완료: id={}, reason={}", orderId, reason);
         return saved;
     }
@@ -165,13 +143,12 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public Order requestReturn(Long orderId, String reason, List<Long> orderItemIds) {
         var order = load(orderId);
-        if (order.getStatus() != OrderStatus.DELIVERED)
+        if (!(order.getStatus() instanceof OrderStatus.Delivered)) {
             throw new InvalidStateException("배송 완료된 주문만 반품 가능합니다.");
-        order.requestReturn(reason, orderItemIds);
+        }
+        order.requestReturn(reason);
         var saved = orderRepository.save(order);
-        eventPublisher.publishEvent(new OrderReturnRequestedEvent(
-            orderId, order.getOrderNumber(), reason, orderItemIds, LocalDateTime.now()
-        ));
+        publishDomainEvents(saved);
         return saved;
     }
 
@@ -179,9 +156,10 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public Order approveReturn(Long orderId, String approver) {
         var order = load(orderId);
-        if (order.getStatus() != OrderStatus.RETURN_REQUESTED)
+        if (!(order.getStatus() instanceof OrderStatus.ReturnRequested)) {
             throw new InvalidStateException("반품 신청 상태가 아닙니다.");
-        order.approveReturn(approver);
+        }
+        order.completeReturn();
         return orderRepository.save(order);
     }
 
@@ -189,9 +167,11 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public Order rejectReturn(Long orderId, String reason, String approver) {
         var order = load(orderId);
-        if (order.getStatus() != OrderStatus.RETURN_REQUESTED)
+        if (!(order.getStatus() instanceof OrderStatus.ReturnRequested)) {
             throw new InvalidStateException("반품 신청 상태가 아닙니다.");
-        order.rejectReturn(reason, approver);
+        }
+        // 반품 거절 — 배송 완료 상태로 복원 (DELIVERED)
+        log.info("반품 거절: orderId={}, reason={}, approver={}", orderId, reason, approver);
         return orderRepository.save(order);
     }
 
@@ -199,11 +179,9 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public Order markShipped(Long orderId, String trackingNumber, String carrier) {
         var order = load(orderId);
-        order.markShipped(trackingNumber, carrier);
+        order.ship(trackingNumber, carrier);
         var saved = orderRepository.save(order);
-        eventPublisher.publishEvent(new OrderShippedEvent(
-            orderId, order.getOrderNumber(), order.getUserId(), trackingNumber, carrier, LocalDateTime.now()
-        ));
+        publishDomainEvents(saved);
         return saved;
     }
 
@@ -211,11 +189,9 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public Order markDelivered(Long orderId) {
         var order = load(orderId);
-        order.markDelivered();
+        order.deliver();
         var saved = orderRepository.save(order);
-        eventPublisher.publishEvent(new OrderDeliveredEvent(
-            orderId, order.getOrderNumber(), order.getUserId(), LocalDateTime.now()
-        ));
+        publishDomainEvents(saved);
         return saved;
     }
 
@@ -223,16 +199,27 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public Order confirm(Long orderId) {
         var order = load(orderId);
-        order.confirm();
-        return orderRepository.save(order);
+        order.confirm("SYSTEM");
+        var saved = orderRepository.save(order);
+        publishDomainEvents(saved);
+        return saved;
     }
 
     @Override
     @Transactional
     public Order changeStatus(Long orderId, OrderStatus newStatus, String reason) {
         var order = load(orderId);
-        order.changeStatus(newStatus, reason);
-        return orderRepository.save(order);
+        String label = newStatus.label();
+        switch (label) {
+            case "CONFIRMED" -> order.confirm("ADMIN");
+            case "PROCESSING" -> order.process();
+            case "CANCELLED" -> order.cancel(reason != null ? reason : "관리자 변경");
+            case "RETURNED" -> order.completeReturn();
+            default -> log.warn("지원하지 않는 상태 전이: {} → {}", order.getStatus().label(), label);
+        }
+        var saved = orderRepository.save(order);
+        publishDomainEvents(saved);
+        return saved;
     }
 
     @Override
@@ -247,20 +234,22 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public Page<Order> findByUserId(Long userId, Pageable pageable) {
-        return pageOf(orderRepository.findAllByUserId(userId), pageable);
+        return pageOf(orderRepository.findByUserId(userId), pageable);
     }
 
     @Override
     public Page<Order> findByStatus(OrderStatus status, Pageable pageable) {
+        String targetLabel = status.label();
         return pageOf(orderRepository.findAll().stream()
-            .filter(o -> o.getStatus() == status).toList(), pageable);
+            .filter(o -> o.getStatus().label().equals(targetLabel))
+            .toList(), pageable);
     }
 
     @Override
     public Page<Order> search(OrderSearchCondition c, Pageable pageable) {
         var hits = orderRepository.findAll().stream()
             .filter(o -> c.userId() == null || c.userId().equals(o.getUserId()))
-            .filter(o -> c.status() == null || c.status() == o.getStatus())
+            .filter(o -> c.status() == null || o.getStatus().label().equals(c.status().label()))
             .filter(o -> c.from() == null || (o.getCreatedAt() != null && !o.getCreatedAt().isBefore(c.from())))
             .filter(o -> c.to() == null || (o.getCreatedAt() != null && !o.getCreatedAt().isAfter(c.to())))
             .filter(o -> c.orderNumberContains() == null
@@ -271,16 +260,16 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public List<Order> findPendingByUser(Long userId) {
-        return orderRepository.findAllByUserId(userId).stream()
-            .filter(o -> o.getStatus() == OrderStatus.PENDING_PAYMENT
-                || o.getStatus() == OrderStatus.PAYMENT_FAILED)
+        return orderRepository.findByUserId(userId).stream()
+            .filter(o -> o.getStatus() instanceof OrderStatus.PaymentPending
+                || o.getStatus() instanceof OrderStatus.Pending)
             .toList();
     }
 
     @Override
     public List<Order> findUnpaidOrdersOlderThan(LocalDateTime threshold) {
         return orderRepository.findAll().stream()
-            .filter(o -> o.getStatus() == OrderStatus.PENDING_PAYMENT)
+            .filter(o -> o.getStatus() instanceof OrderStatus.PaymentPending)
             .filter(o -> o.getCreatedAt() != null && o.getCreatedAt().isBefore(threshold))
             .toList();
     }
@@ -288,22 +277,22 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public OrderTotals computeTotals(LocalDateTime from, LocalDateTime to) {
         var orders = orderRepository.findAll().stream()
-            .filter(o -> o.getStatus() != OrderStatus.CANCELLED)
+            .filter(o -> !(o.getStatus() instanceof OrderStatus.Cancelled))
             .filter(o -> from == null || (o.getCreatedAt() != null && !o.getCreatedAt().isBefore(from)))
             .filter(o -> to == null || (o.getCreatedAt() != null && !o.getCreatedAt().isAfter(to)))
             .toList();
-        var gross = orders.stream().map(Order::getSubtotalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        var gross = orders.stream().map(Order::getTotalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         var discount = orders.stream().map(Order::getDiscountAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
-        var net = orders.stream().map(Order::getNetAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        var net = orders.stream().map(Order::getFinalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         return new OrderTotals(orders.size(), gross, discount, net);
     }
 
     @Override
     public UserOrderTotals computeUserTotals(Long userId) {
-        var orders = orderRepository.findAllByUserId(userId).stream()
-            .filter(o -> o.getStatus() != OrderStatus.CANCELLED)
+        var orders = orderRepository.findByUserId(userId).stream()
+            .filter(o -> !(o.getStatus() instanceof OrderStatus.Cancelled))
             .toList();
-        var spent = orders.stream().map(Order::getNetAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        var spent = orders.stream().map(Order::getFinalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         var avg = orders.isEmpty() ? BigDecimal.ZERO
             : spent.divide(BigDecimal.valueOf(orders.size()), 2, RoundingMode.HALF_UP);
         return new UserOrderTotals(userId, orders.size(), spent, avg);
@@ -313,12 +302,11 @@ public class OrderServiceImpl implements OrderService {
 
     private Order load(Long id) {
         return orderRepository.findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("주문을 찾을 수 없습니다: " + id));
+            .orElseThrow(() -> new ResourceNotFoundException("Order", id));
     }
 
     private void validate(PlaceOrderCommand c) {
         if (c.userId() == null) throw new InvalidStateException("사용자는 필수");
-        if (c.addressId() == null) throw new InvalidStateException("배송지는 필수");
         if (c.items() == null || c.items().isEmpty()) throw new InvalidStateException("주문 항목은 최소 1개");
         c.items().forEach(i -> {
             if (i.productId() == null) throw new InvalidStateException("상품 ID 누락");
@@ -330,11 +318,11 @@ public class OrderServiceImpl implements OrderService {
         var details = new ArrayList<LineDetail>();
         for (var item : items) {
             var product = productRepository.findById(item.productId())
-                .orElseThrow(() -> new ResourceNotFoundException("상품을 찾을 수 없습니다: " + item.productId()));
-            if (product.getStatus() != ProductStatus.ON_SALE)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", item.productId()));
+            if (!(product.getStatus() instanceof ProductStatus.Active))
                 throw new InvalidStateException("판매중이 아닌 상품입니다: " + product.getName());
 
-            var unitPrice = product.getEffectivePrice();
+            var unitPrice = product.getBasePrice();
             // 클라이언트가 예상한 가격과 5% 이상 차이 나면 거부 (가격 변동 보호)
             if (item.expectedUnitPrice() != null) {
                 var diff = unitPrice.subtract(item.expectedUnitPrice()).abs();
@@ -352,7 +340,8 @@ public class OrderServiceImpl implements OrderService {
 
     private Page<Order> pageOf(List<Order> all, Pageable pageable) {
         var sorted = all.stream()
-            .sorted(Comparator.comparing(Order::getCreatedAt).reversed())
+            .sorted(Comparator.comparing(Order::getCreatedAt,
+                Comparator.nullsLast(Comparator.reverseOrder())))
             .collect(Collectors.toList());
         int start = (int) pageable.getOffset();
         int end = Math.min(start + pageable.getPageSize(), sorted.size());
@@ -360,9 +349,9 @@ public class OrderServiceImpl implements OrderService {
         return new PageImpl<>(content, pageable, sorted.size());
     }
 
-    private String generateOrderNumber() {
-        return "ORD-" + LocalDateTime.now().toString().replaceAll("[^0-9]", "").substring(0, 14)
-            + "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+    private void publishDomainEvents(Order order) {
+        order.getDomainEvents().forEach(eventPublisher::publishEvent);
+        order.clearDomainEvents();
     }
 
     private record LineDetail(Product product, long quantity, BigDecimal unitPrice) {

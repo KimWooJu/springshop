@@ -226,7 +226,7 @@ public class ProductSearchServiceImpl {
         if (target == null) return List.of();
         return productRepository.findAll().stream()
             .filter(p -> !p.getId().equals(productId))
-            .filter(p -> p.getStatus() == ProductStatus.ON_SALE)
+            .filter(p -> p.getStatus() instanceof ProductStatus.Active)
             .filter(p -> matchesAnyDimension(p, target))
             .sorted(scoreComparator(target))
             .limit(limit)
@@ -303,7 +303,7 @@ public class ProductSearchServiceImpl {
     public List<Product> trendingProducts(int limit) {
         var cutoff = LocalDateTime.now().minusDays(30);
         return productRepository.findAll().stream()
-            .filter(p -> p.getStatus() == ProductStatus.ON_SALE)
+            .filter(p -> p.getStatus() instanceof ProductStatus.Active)
             .filter(p -> p.getUpdatedAt() == null || p.getUpdatedAt().isAfter(cutoff))
             .sorted(Comparator.comparingLong(Product::getSalesCount).reversed())
             .limit(limit)
@@ -317,7 +317,7 @@ public class ProductSearchServiceImpl {
     public List<Product> newArrivals(int days, int limit) {
         var cutoff = LocalDateTime.now().minusDays(days);
         return productRepository.findAll().stream()
-            .filter(p -> p.getStatus() == ProductStatus.ON_SALE)
+            .filter(p -> p.getStatus() instanceof ProductStatus.Active)
             .filter(p -> p.getCreatedAt() != null && p.getCreatedAt().isAfter(cutoff))
             .sorted(Comparator.comparing(Product::getCreatedAt).reversed())
             .limit(limit)
@@ -365,7 +365,7 @@ public class ProductSearchServiceImpl {
 
     private Stream<Product> applyAvailabilityFilter(Stream<Product> stream, SearchFilter filter) {
         if (Boolean.TRUE.equals(filter.inStockOnly())) {
-            stream = stream.filter(p -> p.getStatus() == ProductStatus.ON_SALE);
+            stream = stream.filter(p -> p.getStatus() instanceof ProductStatus.Active);
         }
         if (Boolean.TRUE.equals(filter.onSaleOnly())) {
             stream = stream.filter(Product::isOnDiscount);
