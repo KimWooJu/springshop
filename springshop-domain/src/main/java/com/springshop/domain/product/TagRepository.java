@@ -16,6 +16,6 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
 
     List<Tag> findByNameIn(List<String> names);
 
-    @Query("SELECT t FROM Tag t ORDER BY t.usageCount DESC")
+    @Query("SELECT t FROM Tag t ORDER BY t.useCount DESC")
     List<Tag> findTopTags(org.springframework.data.domain.Pageable pageable);
 }

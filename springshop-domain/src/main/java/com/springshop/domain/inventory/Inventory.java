@@ -6,7 +6,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-import jakarta.persistence.Version;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -81,10 +80,6 @@ public class Inventory extends BaseAuditEntity {
     @Column(name = "last_adjusted_at")
     private LocalDateTime lastAdjustedAt;
 
-    @Version
-    @Column(name = "stock_version", nullable = false)
-    private Long stockVersion = 0L;
-
     protected Inventory() {
         super();
     }
@@ -148,10 +143,6 @@ public class Inventory extends BaseAuditEntity {
 
     public LocalDateTime getLastAdjustedAt() {
         return lastAdjustedAt;
-    }
-
-    public Long getStockVersion() {
-        return stockVersion;
     }
 
     public void updateLocation(String location) {
